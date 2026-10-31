@@ -1,0 +1,20 @@
+windows:
+  - window_name: "dev"
+    layout: "main-vertical"
+    start_directory: "~/projects"
+    panes:
+      - shell_command: ["echo", "Pane 1"]
+        focus: false
+      - shell_command: ["echo", "Pane 2"]
+        focus: false
+      - shell_command: ["echo", "Pane 3"]
+        focus: true
+      - shell_command: ["echo", "Pane 4"]
+        focus: false
+  - window_name: "logs"
+    layout: "even-horizontal"
+    start_directory: "/var/log"
+    panes:
+      - shell_command: ["tail", "-f", "system.log"]
+        focus: false
+

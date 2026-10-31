@@ -1,0 +1,7 @@
+windows:
+  - window_name: "test"
+    layout: "main-vertical"
+    start_directory: "/tmp"
+    panes:
+      - shell_command: ["echo", "hello"]
+        focus: true
