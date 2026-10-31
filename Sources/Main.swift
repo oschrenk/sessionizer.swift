@@ -41,9 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let loaded = Result { try loadEntries() }
       await MainActor.run {
         switch loaded {
-        case let .success((entries, configDir)):
+        case let .success((entries, configDir, backend)):
           model.entries = entries
           model.configDir = configDir
+          model.backend = backend
           logTiming("entries ready (\(entries.count))")
         case let .failure(error):
           model.error = "\(error)"
@@ -53,12 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 }
 
-func loadEntries() throws -> ([Entry], String) {
+func loadEntries() throws -> ([Entry], String, String) {
   guard let file = findConfigFile() else {
     throw ConfigError(description: "Config file not found")
   }
   let config = try parseConfig(String(contentsOfFile: file, encoding: .utf8))
-  return (buildEntries(config), (file as NSString).deletingLastPathComponent)
+  return (buildEntries(config), (file as NSString).deletingLastPathComponent, config.backend)
 }
 
 /// ponytail: spike timing, remove once launch speed is settled.

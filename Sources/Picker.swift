@@ -8,6 +8,7 @@ final class PickerModel {
   }
 
   var configDir = ""
+  var backend = ""
   var query = "" {
     // Return re-commits the same text; only a real edit refilters and resets the selection
     didSet {
@@ -31,7 +32,11 @@ final class PickerModel {
     let matches = filtered
     guard matches.indices.contains(selection) else { return }
     do {
-      try openEntry(matches[selection], configDir: configDir)
+      if backend == "rex" {
+        try openRexEntry(matches[selection])
+      } else {
+        try openEntry(matches[selection], configDir: configDir)
+      }
       exit(0)
     } catch {
       self.error = "\(error)"

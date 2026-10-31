@@ -8,6 +8,7 @@ struct SearchEntry: Equatable {
 }
 
 struct Config {
+  var backend = ""
   var startupName = ""
   var startupPath = ""
   var startupLayout = ""
@@ -58,7 +59,13 @@ func parseConfig(_ text: String) throws -> Config {
     (toml[section]?[key]?.array).map { $0.compactMap(\.string) } ?? []
   }
 
+  let backend = string("base", "backend")
+  guard ["", "ghostty", "rex"].contains(backend) else {
+    throw ConfigError(description: "Unknown backend \"\(backend)\", want \"ghostty\" or \"rex\"")
+  }
+
   return try Config(
+    backend: backend,
     startupName: string("startup", "name"),
     startupPath: expandEnv(string("startup", "path")),
     startupLayout: string("startup", "layout"),
