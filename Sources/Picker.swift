@@ -33,7 +33,7 @@ final class PickerModel {
     guard matches.indices.contains(selection) else { return }
     do {
       if backend == "rex" {
-        try openRexEntry(matches[selection])
+        try openRexEntry(matches[selection], configDir: configDir)
       } else {
         try openEntry(matches[selection], configDir: configDir)
       }

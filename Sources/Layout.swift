@@ -67,6 +67,16 @@ func simpleLayout(name: String, path: String) -> Layout {
   ])
 }
 
+/// The entry's layout file when one resolves, else `simpleLayout`.
+func resolveLayout(_ entry: Entry, configDir: String) throws -> Layout {
+  guard let resolved = resolveLayoutPath(
+    sessionPath: entry.path, layout: entry.layout, layoutPath: entry.layoutPath, configDir: configDir
+  ) else {
+    return simpleLayout(name: entry.label, path: entry.path)
+  }
+  return try readLayout(path: resolved)
+}
+
 func readLayout(path: String) throws -> Layout {
   let text = try String(contentsOfFile: path, encoding: .utf8)
   var layout = try YAMLDecoder().decode(Layout.self, from: text)

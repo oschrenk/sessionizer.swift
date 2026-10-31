@@ -147,12 +147,7 @@ func buildScript(path: String, title: String, layout: Layout) throws -> (String,
 /// Port of the Ghostty branch of the Go `StartSession`.
 @MainActor
 func openEntry(_ entry: Entry, configDir: String) throws {
-  var layout = simpleLayout(name: entry.label, path: entry.path)
-  if let resolved = resolveLayoutPath(
-    sessionPath: entry.path, layout: entry.layout, layoutPath: entry.layoutPath, configDir: configDir
-  ) {
-    layout = try readLayout(path: resolved)
-  }
+  let layout = try resolveLayout(entry, configDir: configDir)
   let (text, args) = try buildScript(path: entry.path, title: entry.label, layout: layout)
   try runHandler(text, args: args)
 }

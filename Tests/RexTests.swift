@@ -22,6 +22,49 @@ struct RexTests {
   }
 }
 
+struct RexStepsTests {
+  @Test
+  func `two columns with a command and focus`() throws {
+    let layout = Layout(windows: [
+      Window(name: "", layout: "even-horizontal", startDirectory: "", panes: [
+        Pane(),
+        Pane(shellCommand: ["claude --continue || claude"], focus: true),
+      ]),
+    ])
+    #expect(try rexSteps(layout, path: "/p") == [
+      RexStep(window: 0, pane: 0, cwd: "/p"),
+      RexStep(
+        window: 0, pane: 1, parent: 0, split: "right", cwd: "/p",
+        command: "claude --continue || claude", focus: true
+      ),
+    ])
+  }
+
+  @Test
+  func `splits map down to below, and later windows start over`() throws {
+    let layout = Layout(windows: [
+      Window(name: "dev", layout: "even-vertical", startDirectory: "/w", panes: [
+        Pane(),
+        Pane(shellCommand: ["echo", "hi"], startDirectory: "/q"),
+      ]),
+      Window(name: "logs", layout: "", startDirectory: "", panes: [Pane()]),
+    ])
+    #expect(try rexSteps(layout, path: "/p") == [
+      RexStep(window: 0, pane: 0, name: "dev", cwd: "/w"),
+      RexStep(window: 0, pane: 1, parent: 0, split: "below", cwd: "/q", command: "echo hi"),
+      RexStep(window: 1, pane: 0, name: "logs", cwd: "/p"),
+    ])
+  }
+
+  @Test
+  func `unknown layout names the window`() {
+    let layout = Layout(windows: [Window(name: "", layout: "spiral", startDirectory: "", panes: [Pane()])])
+    #expect(throws: LayoutError.self) {
+      try rexSteps(layout, path: "/p")
+    }
+  }
+}
+
 struct BackendConfigTests {
   @Test(arguments: [
     ("", ""),
