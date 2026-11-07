@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     panel.isOpaque = false
     panel.backgroundColor = .clear
-    panel.hasShadow = true
+    panel.hasShadow = false
     panel.level = .floating
     panel.contentView = NSHostingView(rootView: PickerView(model: model))
     // exact centre; `center()` deliberately sits windows above the middle
