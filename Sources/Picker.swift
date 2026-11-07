@@ -19,6 +19,9 @@ final class PickerModel {
   }
 
   var selection = 0
+  /// Rex host labels; `hostIndex` 0 is this Mac, n is `hosts[n - 1]`.
+  var hosts: [String] = []
+  var hostIndex = 0
   var error: String?
   private(set) var filtered: [Entry] = []
 
@@ -28,12 +31,25 @@ final class PickerModel {
     selection = (selection + delta + count) % count
   }
 
+  var server: String? {
+    hostIndex == 0 ? nil : hosts[hostIndex - 1]
+  }
+
+  var hostName: String {
+    server.map { String($0.prefix { $0 != "." }) } ?? "This Mac"
+  }
+
+  func cycleHost(_ delta: Int) {
+    let count = hosts.count + 1
+    hostIndex = (hostIndex + delta + count) % count
+  }
+
   func open() {
     let matches = filtered
     guard matches.indices.contains(selection) else { return }
     do {
       if backend == "rex" {
-        try openRexEntry(matches[selection], configDir: configDir)
+        try openRexEntry(matches[selection], configDir: configDir, on: server)
       } else {
         try openEntry(matches[selection], configDir: configDir)
       }
@@ -63,17 +79,31 @@ struct PickerView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      TextField("", text: $model.query, prompt: Text("Open a session").foregroundStyle(Gruvbox.gray))
-        .textFieldStyle(.plain)
-        .font(.system(size: 28))
-        .foregroundStyle(Gruvbox.fg)
-        .tint(Gruvbox.orange)
-        .padding(20)
-        .focused($focused)
-        .onSubmit { model.open() }
-        .onKeyPress(.upArrow) { model.move(-1); return .handled }
-        .onKeyPress(.downArrow) { model.move(1); return .handled }
-        .onExitCommand { exit(0) }
+      HStack {
+        TextField("", text: $model.query, prompt: Text("Open a session").foregroundStyle(Gruvbox.gray))
+          .textFieldStyle(.plain)
+          .font(.system(size: 28))
+          .foregroundStyle(Gruvbox.fg)
+          .tint(Gruvbox.orange)
+          .focused($focused)
+          .onSubmit { model.open() }
+          .onKeyPress(.upArrow) { model.move(-1); return .handled }
+          .onKeyPress(.downArrow) { model.move(1); return .handled }
+          // Shift-Tab arrives as the backtab character
+          .onKeyPress(keys: [.tab, KeyEquivalent("\u{19}")]) { press in
+            guard model.backend == "rex" else { return .ignored }
+            model.cycleHost(press.modifiers.contains(.shift) || press.key != .tab ? -1 : 1)
+            return .handled
+          }
+          .onExitCommand { exit(0) }
+
+        if model.backend == "rex" {
+          Text(model.hostName)
+            .font(.system(size: 15))
+            .foregroundStyle(Gruvbox.gray)
+        }
+      }
+      .padding(20)
 
       if let error = model.error {
         Text(error)

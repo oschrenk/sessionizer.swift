@@ -26,6 +26,28 @@ private func decode<T: Decodable>(_ data: Data) throws -> T {
   return try decoder.decode(T.self, from: data)
 }
 
+private struct RexHosts: Decodable {
+  struct Listed: Decodable {
+    struct Host: Decodable {
+      let label: String
+    }
+
+    let host: Host
+  }
+
+  let hosts: [Listed]
+}
+
+/// The host labels in the output of `rex hosts list --json`, in listed order.
+func rexHosts(in listing: Data) throws -> [String] {
+  let listed: RexHosts = try decode(listing)
+  return listed.hosts.map(\.host.label)
+}
+
+func listRexHosts() throws -> [String] {
+  try rexHosts(in: rex("hosts", "list", "--json"))
+}
+
 /// The id of the first session labelled `label` in the output of `rex ls --json`.
 func rexSessionID(label: String, in listing: Data) throws -> String? {
   let listed: RexSessions = try decode(listing)
@@ -80,7 +102,9 @@ func rexSteps(_ layout: Layout, path: String) throws -> [RexStep] {
 }
 
 /// Creates the session and applies its layout, or removes what it created and throws.
-private func createRexSession(_ entry: Entry, configDir: String) throws -> String {
+private func createRexSession(
+  _ entry: Entry, configDir: String, on server: String?
+) throws -> String {
   let steps = try rexSteps(resolveLayout(entry, configDir: configDir), path: entry.path)
   var session = ""
   var firstWindow = ""
@@ -91,46 +115,52 @@ private func createRexSession(_ entry: Entry, configDir: String) throws -> Strin
       let block: String
       if let parent = step.parent, let anchor = blocks[[step.window, parent]] {
         let created: RexCreated = try decode(rex(
-          "split", "-s", session, "-b", anchor, "--split", step.split, "--cwd", step.cwd, "--focus=false", "--json"
+          "split", "-s", session, "-b", anchor, "--split", step.split, "--cwd", step.cwd, "--focus=false", "--json",
+          on: server
         ))
         block = created.blockIds?.first ?? ""
       } else if step.window == 0 {
         let name = step.name.isEmpty ? [] : ["--window", step.name]
-        let created: RexCreated = try decode(rex(["new", entry.label, "-c", step.cwd] + name + ["--json"]))
+        let created: RexCreated = try decode(rex(
+          ["new", entry.label, "-c", step.cwd] + name + ["--json"], on: server
+        ))
         session = created.sessionId ?? ""
         firstWindow = created.initialWindows?.first?.windowId ?? ""
         block = created.initialWindows?.first?.blockIds?.first ?? ""
       } else {
         let name = step.name.isEmpty ? [] : [step.name]
         let created: RexCreated = try decode(rex(
-          ["window", "new", "-s", session] + name + ["-c", step.cwd, "--focus=false", "--json"]
+          ["window", "new", "-s", session] + name + ["-c", step.cwd, "--focus=false", "--json"],
+          on: server
         ))
         block = created.blockIds?.first ?? ""
       }
       blocks[[step.window, step.pane]] = block
       // typed into the shell, as the Ghostty backend does, so the shell parses it and outlives it
       if !step.command.isEmpty {
-        try rex("send", "-s", session, "-b", block, step.command + "\n")
+        try rex("send", "-s", session, "-b", block, step.command + "\n", on: server)
       }
     }
 
     // focusing a block selects its window, so the first window goes last, as in the Ghostty backend
     for step in steps.reversed() where step.focus {
-      try rex("block", "focus", "-s", session, blocks[[step.window, step.pane]] ?? "")
+      try rex("block", "focus", "-s", session, blocks[[step.window, step.pane]] ?? "", on: server)
     }
-    try rex("window", "focus", "-s", session, firstWindow)
+    try rex("window", "focus", "-s", session, firstWindow, on: server)
   } catch {
     if !session.isEmpty {
-      _ = try? rex("kill", session)
+      _ = try? rex("kill", session, on: server)
     }
     throw error
   }
   return session
 }
 
-func openRexEntry(_ entry: Entry, configDir: String) throws {
-  let id = try rexSessionID(label: entry.label, in: rex("ls", "--json"))
-    ?? createRexSession(entry, configDir: configDir)
+/// Opens the entry on `server`, a host label, or on this Mac when nil.
+func openRexEntry(_ entry: Entry, configDir: String, on server: String? = nil) throws {
+  let id = try rexSessionID(label: entry.label, in: rex("ls", "--json", on: server))
+    ?? createRexSession(entry, configDir: configDir, on: server)
+  // the app connects to the local server and lists remote sessions there too, so no -S
   do {
     try rex("do", "session.select", "session_id=\(id)")
   } catch {
@@ -140,13 +170,13 @@ func openRexEntry(_ entry: Entry, configDir: String) throws {
 }
 
 @discardableResult
-private func rex(_ args: String...) throws -> Data {
-  try rex(args)
+private func rex(_ args: String..., on server: String? = nil) throws -> Data {
+  try rex(args, on: server)
 }
 
 @discardableResult
-private func rex(_ args: [String]) throws -> Data {
-  try run(rexPath, ["--autostart=false"] + args)
+private func rex(_ args: [String], on server: String? = nil) throws -> Data {
+  try run(rexPath, ["--autostart=false"] + (server.map { ["-S", $0] } ?? []) + args)
 }
 
 @discardableResult

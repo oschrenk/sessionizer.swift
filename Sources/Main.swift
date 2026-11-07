@@ -50,6 +50,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           model.error = "\(error)"
         }
       }
+      guard case let .success((_, _, backend)) = loaded, backend == "rex" else { return }
+      let hosts = Result { try listRexHosts() }
+      await MainActor.run {
+        switch hosts {
+        case let .success(hosts):
+          model.hosts = hosts
+        case let .failure(error):
+          model.error = "\(error)"
+        }
+      }
     }
   }
 }

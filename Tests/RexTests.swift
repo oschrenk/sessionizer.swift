@@ -20,6 +20,17 @@ struct RexTests {
   func `no session with the label`() throws {
     #expect(try rexSessionID(label: "ops", in: Self.listing) == nil)
   }
+
+  @Test
+  func `host labels in listed order`() throws {
+    let listing = Data("""
+    {"home":{"label":"","this_machine":true},"hosts":[
+      {"host":{"id":"host:a","label":"maxbook.tail.ts.net","endpoints":["https://maxbook.tail.ts.net"]},"from":"home","held":false},
+      {"host":{"id":"host:b","label":"studio"},"from":"home","held":false}
+    ],"warnings":[]}
+    """.utf8)
+    #expect(try rexHosts(in: listing) == ["maxbook.tail.ts.net", "studio"])
+  }
 }
 
 struct RexStepsTests {
